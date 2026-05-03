@@ -139,25 +139,26 @@ Open your browser at `http://localhost:8080/LoadBalancerDemo/`
 ---
 
 ## 📁 Project Structure
+
+```
 LoadBalancerDemo/
-├── build.xml                          # Ant build script
+├── build.xml
 ├── lib/
-│   └── servlet-api.jar                # Tomcat servlet API (you add this)
+│   └── servlet-api.jar
 ├── src/
 │   └── java/
 │       └── loadbalancer/
-│           ├── BackendServer.java     # Simulated backend server
-│           ├── LoadBalancer.java      # Balancer interface
+│           ├── BackendServer.java
+│           ├── LoadBalancer.java
 │           ├── RoundRobinBalancer.java
 │           ├── LeastConnectionsBalancer.java
 │           ├── RandomBalancer.java
-│           └── LoadBalancerServlet.java  # Main servlet / REST API
+│           └── LoadBalancerServlet.java
 └── web/
-├── WEB-INF/
-│   └── web.xml                    # Servlet configuration
-└── index.html                     # Frontend UI
-
----
+    ├── WEB-INF/
+    │   └── web.xml
+    └── index.html
+```
 
 ## 🔌 API Endpoints
 
