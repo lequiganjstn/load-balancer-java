@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="LoadBalancerDemo" default="dist" basedir=".">
+
+    <property name="src.dir"     value="src/java"/>
+    <property name="web.dir"     value="web"/>
+    <property name="build.dir"   value="build"/>
+    <property name="classes.dir" value="${build.dir}/classes"/>
+    <property name="dist.dir"    value="dist"/>
+    <property name="war.name"    value="LoadBalancerDemo.war"/>
+
+    <!-- Tomcat paths - adjust to your Tomcat location -->
+    <property name="tomcat.home"    value="C:/apache-tomcat-10.1.54"/>
+    <property name="tomcat.webapps" value="${tomcat.home}/webapps"/>
+    <property name="servlet.jar" value="lib/servlet-api.jar"/>
+
+    <path id="compile.classpath">
+        <pathelement location="${servlet.jar}"/>
+    </path>
+
+    <!-- ══ clean ══════════════════════════════════════════════════════════ -->
+    <target name="clean" description="Remove build artifacts">
+        <delete dir="${build.dir}"/>
+        <delete dir="${dist.dir}"/>
+    </target>
+
+    <!-- ══ init ═══════════════════════════════════════════════════════════ -->
+    <target name="init">
+        <mkdir dir="${classes.dir}"/>
+        <mkdir dir="${dist.dir}"/>
+    </target>
+
+    <!-- ══ compile ════════════════════════════════════════════════════════ -->
+    <target name="compile" depends="init" description="Compile Java sources">
+        <javac srcdir="${src.dir}"
+               destdir="${classes.dir}"
+               classpathref="compile.classpath"
+               includeantruntime="false"
+               release="17"/>
+    </target>
+
+    <!-- ══ dist (build WAR) ═══════════════════════════════════════════════ -->
+    <target name="dist" depends="compile" description="Build WAR file">
+        <war destfile="${dist.dir}/${war.name}" webxml="${web.dir}/WEB-INF/web.xml">
+            <fileset dir="${web.dir}">
+                <exclude name="WEB-INF/web.xml"/>
+            </fileset>
+            <classes dir="${classes.dir}"/>
+        </war>
+        <echo message="WAR built: ${dist.dir}/${war.name}"/>
+    </target>
+
+    <!-- ══ deploy ═════════════════════════════════════════════════════════ -->
+    <target name="deploy" depends="dist" description="Copy WAR to Tomcat webapps">
+        <copy file="${dist.dir}/${war.name}" todir="${tomcat.webapps}"/>
+        <echo message="Deployed to ${tomcat.webapps}"/>
+    </target>
+
+    <!-- ══ run (NetBeans default run target) ══════════════════════════════ -->
+    <target name="run" depends="deploy" description="Build, deploy and open browser">
+        <echo message="Opening http://localhost:8080/LoadBalancerDemo/"/>
+        <exec executable="cmd" os="Windows 10,Windows 11,Windows NT">
+            <arg value="/c"/>
+            <arg value="start"/>
+            <arg value="http://localhost:8080/LoadBalancerDemo/"/>
+        </exec>
+    </target>
+
+    <!-- ══ clean-deploy ═══════════════════════════════════════════════════ -->
+    <target name="clean-deploy" depends="clean, deploy"
+            description="Clean build then deploy"/>
+
+</project>

@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Load Balancer Demo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg:       #0a0c10;
+    --surface:  #111418;
+    --border:   #1e2530;
+    --accent:   #00e5ff;
+    --green:    #00ff88;
+    --red:      #ff3b5c;
+    --yellow:   #ffd600;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --card-bg:  #13171e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.5rem;
+  }
+
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
+  }
+
+  .badge {
+    background: var(--accent);
+    color: #000;
+    font-size: .65rem;
+    font-weight: 700;
+    padding: .25rem .6rem;
+    border-radius: 99px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+
+  .card h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: .85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+
+  /* Algorithm selector */
+  .algo-group {
+    display: flex;
+    gap: .75rem;
+    flex-wrap: wrap;
+  }
+
+  .algo-btn {
+    padding: .5rem 1.1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .8rem;
+    cursor: pointer;
+    transition: all .2s;
+  }
+
+  .algo-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .algo-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+    font-weight: 700;
+  }
+
+  /* Server cards */
+  .servers { display: flex; flex-direction: column; gap: .75rem; }
+
+  .server-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: border-color .2s;
+  }
+
+  .server-row.healthy  { border-left: 3px solid var(--green); }
+  .server-row.unhealthy{ border-left: 3px solid var(--red); opacity: .6; }
+  .server-row.active-highlight { border-color: var(--accent); box-shadow: 0 0 12px rgba(0,229,255,.15); }
+
+  .server-name {
+    font-weight: 700;
+    font-size: .95rem;
+    min-width: 90px;
+    color: var(--accent);
+  }
+
+  .server-meta { flex: 1; font-size: .75rem; color: var(--muted); line-height: 1.7; }
+
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot.red   { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+
+  .bar-wrap {
+    width: 100px;
+    background: var(--border);
+    border-radius: 99px;
+    height: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green), var(--accent));
+    border-radius: 99px;
+    transition: width .4s ease;
+  }
+
+  .toggle-btn {
+    padding: .3rem .75rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .7rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all .2s;
+  }
+  .toggle-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+
+  /* Send request */
+  .send-area { display: flex; flex-direction: column; gap: 1rem; }
+
+  .send-controls { display: flex; gap: .75rem; align-items: center; }
+
+  .send-btn {
+    padding: .65rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    background: linear-gradient(135deg, var(--accent), var(--green));
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-size: .85rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: opacity .2s, transform .1s;
+  }
+  .send-btn:hover { opacity: .85; }
+  .send-btn:active { transform: scale(.97); }
+  .send-btn:disabled { opacity: .4; cursor: default; }
+
+  .burst-btn {
+    padding: .65rem 1.2rem;
+    border-radius: 8px;
+    border: 1px solid var(--yellow);
+    background: transparent;
+    color: var(--yellow);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .8rem;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .burst-btn:hover { background: rgba(255,214,0,.1); }
+
+  .reset-btn {
+    padding: .65rem 1.2rem;
+    border-radius: 8px;
+    border: 1px solid var(--red);
+    background: transparent;
+    color: var(--red);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .8rem;
+    cursor: pointer;
+    margin-left: auto;
+    transition: all .2s;
+  }
+  .reset-btn:hover { background: rgba(255,59,92,.1); }
+
+  /* Last response */
+  .response-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    font-size: .78rem;
+    line-height: 1.7;
+    min-height: 80px;
+    color: var(--green);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    text-align: center;
+  }
+
+  .stat-card .val {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1.1;
+  }
+
+  .stat-card .lbl {
+    font-size: .68rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: .3rem;
+  }
+
+  /* Log */
+  .log-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .log-list li {
+    background: var(--surface);
+    border-radius: 6px;
+    padding: .5rem .85rem;
+    font-size: .72rem;
+    border-left: 2px solid var(--border);
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+  }
+
+  .log-list li .req-id { color: var(--accent); font-weight: 700; min-width: 80px; }
+  .log-list li .srv    { color: var(--green);  min-width: 80px; }
+  .log-list li .algo   { color: var(--yellow); }
+  .log-list li .ms     { color: var(--muted); margin-left: auto; }
+
+  .log-list::-webkit-scrollbar { width: 4px; }
+  .log-list::-webkit-scrollbar-track { background: var(--surface); }
+  .log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+  /* Distribution bar */
+  .dist-bars { display: flex; flex-direction: column; gap: .75rem; }
+  .dist-row  { display: flex; gap: .75rem; align-items: center; font-size: .78rem; }
+  .dist-label{ min-width: 80px; color: var(--accent); }
+  .dist-track{
+    flex: 1; height: 20px; background: var(--border);
+    border-radius: 4px; overflow: hidden; position: relative;
+  }
+  .dist-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green), var(--accent));
+    border-radius: 4px;
+    transition: width .5s ease;
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-right: .4rem;
+    font-size: .68rem;
+    font-weight: 700;
+    color: #000;
+  }
+  .dist-count{ min-width: 40px; text-align: right; color: var(--muted); }
+
+  /* Full-width card */
+  .full { grid-column: 1 / -1; }
+
+  #current-algo-badge {
+    background: rgba(0,229,255,.1);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: .2rem .7rem;
+    border-radius: 6px;
+    font-size: .75rem;
+    font-weight: 700;
+  }
+
+  .spinning { animation: spin .6s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚖ Load Balancer</h1>
+  <span class="badge">Demo</span>
+  <span style="margin-left:auto;font-size:.75rem;color:var(--muted)">Algorithm: <span id="current-algo-badge">Round Robin</span></span>
+</header>
+
+<!-- Stats -->
+<div class="stats-row">
+  <div class="stat-card"><div class="val" id="stat-total">0</div><div class="lbl">Total Requests</div></div>
+  <div class="stat-card"><div class="val" id="stat-healthy">3</div><div class="lbl">Healthy Servers</div></div>
+  <div class="stat-card"><div class="val" id="stat-avg-ms">—</div><div class="lbl">Avg Response (ms)</div></div>
+</div>
+
+<div class="grid">
+
+  <!-- Algorithm -->
+  <div class="card">
+    <h2>Algorithm</h2>
+    <div class="algo-group">
+      <button class="algo-btn active" data-algo="roundrobin">Round Robin</button>
+      <button class="algo-btn"       data-algo="leastconnections">Least Connections</button>
+      <button class="algo-btn"       data-algo="random">Random</button>
+    </div>
+    <p style="margin-top:1rem;font-size:.72rem;color:var(--muted);line-height:1.7" id="algo-desc">
+      Cycles requests evenly across all healthy servers in order. Simple and fair for uniform workloads.
+    </p>
+  </div>
+
+  <!-- Send Requests -->
+  <div class="card">
+    <h2>Send Requests</h2>
+    <div class="send-area">
+      <div class="send-controls">
+        <button class="send-btn" id="btn-send">▶ Send 1</button>
+        <button class="burst-btn" id="btn-burst">⚡ Burst ×10</button>
+        <button class="reset-btn" id="btn-reset">↺ Reset</button>
+      </div>
+      <div class="response-box" id="last-response">// Waiting for request...</div>
+    </div>
+  </div>
+
+  <!-- Servers -->
+  <div class="card">
+    <h2>Backend Servers</h2>
+    <div class="servers" id="servers-list">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+  <!-- Distribution -->
+  <div class="card">
+    <h2>Request Distribution</h2>
+    <div class="dist-bars" id="dist-bars">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="card full">
+    <h2>Request Log</h2>
+    <ul class="log-list" id="log-list">
+      <li><span style="color:var(--muted);font-size:.75rem">No requests yet. Hit "Send" to begin.</span></li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+const API = 'api';
+
+let totalReqs = 0;
+let totalMs   = 0;
+let lastHighlight = null;
+
+const algoDescs = {
+  roundrobin:       'Cycles requests evenly across all healthy servers in order. Simple and fair for uniform workloads.',
+  leastconnections: 'Routes each request to the server with fewest active connections. Ideal for variable request durations.',
+  random:           'Selects a healthy server at random. Stateless and effective when servers have similar capacity.'
+};
+
+// ── Algorithm buttons ─────────────────────────────────────────────────────
+document.querySelectorAll('.algo-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    document.querySelectorAll('.algo-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const algo = btn.dataset.algo;
+    document.getElementById('algo-desc').textContent = algoDescs[algo];
+    await fetch(`${API}/algorithm?type=${algo}`);
+    refreshStatus();
+  });
+});
+
+// ── Send single ───────────────────────────────────────────────────────────
+document.getElementById('btn-send').addEventListener('click', () => sendRequest());
+
+// ── Burst ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-burst').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-burst');
+  btn.disabled = true;
+  const promises = Array.from({length: 10}, () => sendRequest(true));
+  await Promise.all(promises);
+  btn.disabled = false;
+  refreshLog();
+});
+
+// ── Reset ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-reset').addEventListener('click', async () => {
+  await fetch(`${API}/reset`);
+  totalReqs = 0; totalMs = 0;
+  document.getElementById('stat-total').textContent  = '0';
+  document.getElementById('stat-avg-ms').textContent = '—';
+  document.getElementById('last-response').textContent = '// Reset complete.';
+  refreshStatus();
+  refreshLog();
+});
+
+// ── Send request ──────────────────────────────────────────────────────────
+async function sendRequest(silent = false) {
+  try {
+    const res  = await fetch(`${API}/request`);
+    const data = await res.json();
+    if (data.error) { if(!silent) showResponse(JSON.stringify(data, null, 2)); return; }
+
+    totalReqs++;
+    const ms = data.result?.processingMs || 0;
+    totalMs += ms;
+
+    document.getElementById('stat-total').textContent   = totalReqs;
+    document.getElementById('stat-avg-ms').textContent  = Math.round(totalMs / totalReqs);
+
+    if (!silent) {
+      showResponse(JSON.stringify(data, null, 2));
+    }
+
+    highlightServer(data.routedTo);
+    refreshStatus();
+    if (!silent) refreshLog();
+  } catch(e) {
+    if (!silent) showResponse('// Error: ' + e.message);
+  }
+}
+
+function showResponse(text) {
+  document.getElementById('last-response').textContent = text;
+}
+
+// ── Highlight routed server briefly ──────────────────────────────────────
+function highlightServer(id) {
+  if (lastHighlight) {
+    document.querySelector(`[data-srv="${lastHighlight}"]`)?.classList.remove('active-highlight');
+  }
+  const el = document.querySelector(`[data-srv="${id}"]`);
+  if (el) { el.classList.add('active-highlight'); lastHighlight = id; }
+  setTimeout(() => el?.classList.remove('active-highlight'), 800);
+}
+
+// ── Refresh server status ─────────────────────────────────────────────────
+async function refreshStatus() {
+  const res  = await fetch(`${API}/status`);
+  const data = await res.json();
+
+  document.getElementById('current-algo-badge').textContent = data.algorithm;
+
+  const healthy = data.servers.filter(s => s.healthy).length;
+  document.getElementById('stat-healthy').textContent = healthy;
+
+  renderServers(data.servers);
+  renderDistribution(data.servers);
+}
+
+function renderServers(servers) {
+  const container = document.getElementById('servers-list');
+  const total = servers.reduce((a, s) => a + s.totalHandled, 0);
+
+  container.innerHTML = servers.map(s => {
+    const pct = total > 0 ? Math.round((s.totalHandled / total) * 100) : 0;
+    return `
+      <div class="server-row ${s.healthy ? 'healthy' : 'unhealthy'}" data-srv="${s.id}">
+        <div class="dot ${s.healthy ? 'green' : 'red'}"></div>
+        <div class="server-name">${s.id}</div>
+        <div class="server-meta">
+          ${s.host}:${s.port}<br>
+          Active: <b style="color:var(--text)">${s.activeConnections}</b> &nbsp;|&nbsp;
+          Handled: <b style="color:var(--text)">${s.totalHandled}</b> &nbsp;|&nbsp;
+          Avg: <b style="color:var(--text)">${s.avgResponseMs.toFixed(0)}ms</b>
+        </div>
+        <div class="bar-wrap" title="${pct}% of requests">
+          <div class="bar-fill" style="width:${pct}%"></div>
+        </div>
+        <button class="toggle-btn" onclick="toggleServer('${s.id}')">
+          ${s.healthy ? 'Kill' : 'Revive'}
+        </button>
+      </div>`;
+  }).join('');
+}
+
+function renderDistribution(servers) {
+  const container = document.getElementById('dist-bars');
+  const max = Math.max(...servers.map(s => s.totalHandled), 1);
+
+  container.innerHTML = servers.map(s => {
+    const pct = Math.round((s.totalHandled / max) * 100);
+    return `
+      <div class="dist-row">
+        <span class="dist-label">${s.id}</span>
+        <div class="dist-track">
+          <div class="dist-fill" style="width:${pct}%">${pct > 15 ? pct+'%' : ''}</div>
+        </div>
+        <span class="dist-count">${s.totalHandled}</span>
+      </div>`;
+  }).join('');
+}
+
+// ── Toggle server health ──────────────────────────────────────────────────
+async function toggleServer(id) {
+  await fetch(`${API}/toggle?id=${id}`);
+  refreshStatus();
+}
+
+// ── Refresh log ───────────────────────────────────────────────────────────
+async function refreshLog() {
+  const res  = await fetch(`${API}/log`);
+  const data = await res.json();
+  const ul   = document.getElementById('log-list');
+
+  if (!data.length) {
+    ul.innerHTML = '<li><span style="color:var(--muted);font-size:.75rem">No requests yet.</span></li>';
+    return;
+  }
+
+  ul.innerHTML = data.slice(0, 20).map(entry => `
+    <li>
+      <span class="req-id">#${entry.requestId}</span>
+      <span class="srv">→ ${entry.routedTo}</span>
+      <span class="algo">[${entry.algorithm}]</span>
+      <span class="ms">${entry.result?.processingMs ?? '?'}ms</span>
+    </li>`).join('');
+}
+
+// ── Auto-refresh status every 2s ─────────────────────────────────────────
+refreshStatus();
+setInterval(refreshStatus, 2000);
+</script>
+
+</body>
+</html>
